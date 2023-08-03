@@ -1,6 +1,4 @@
 import { authors, books } from '../data';
-const AuthorModel = require('../models/Author.js');
-import { BookModel } from '../models/Book.js';
 
 // Resolvers define the technique for fetching the types defined in the
 // schema. This resolver retrieves books from the "books" array above.
@@ -9,32 +7,35 @@ export const resolvers = {
   // QUERY
   Query: {
     // resolver cho type query
-    books: () => books,
+    books: async (_, __, context) => await context.dataSource.findAllBooks(),
     // tham số truyền từ query nằm trong args
-    book: (_, args) => books.find((book) => book.id == args.id),
-    authors: () => authors,
-    author: (_, args) => authors.find((item) => item.id == args.id)
+    book: async (_, args, context) => await context.dataSource.getBookById(args.id),
+    authors: async (_, __, { dataSource }) => await dataSource.findAllAuthors(),
+    author: async (_, { id }, { dataSource }) => await dataSource.getAuthorById(id)
   },
   Book: {
     // resolver cho type book xem trong schema
     // vì props author trong type Book không có ngoặc => không có tham số args như ở query
     // parent như kết quả của query cha
-    author: (parent) => authors.find((author) => author.id == parent.authorId)
+    author: async (parent, _, context) => await context.dataSource.getAuthorById(parent.authorId)
   },
   Author: {
     // type là Author, field là books trong typeDefs -> sẽ vào resolver này
-    books: (parent) => books.filter((book) => book.authorId == parent.id)
+    books: async ({ id }, _, { dataSource }) => await dataSource.findAllBooks({ authorId: id })
   },
 
   // MUTATION
   Mutation: {
-    createAuthor: (parent, args) => {
-      console.log(AuthorModel)
-      AuthorModel.create({
+    createAuthor: async (_, args, context) =>
+      await context.dataSource.createAuthor({
         name: args.name,
-        age: args.arg
+        age: args.age
+      }),
+    createBook: async (_, args, context) =>
+      await context.dataSource.createBook({
+        name: args.name,
+        genre: args.genre,
+        authorId: args.authorId
       })
-    },
-    createBook: (parent, args) => args
   }
 };
